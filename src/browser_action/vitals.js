@@ -338,7 +338,9 @@
   function buildLayoutShiftListItem(layoutShift) {
     let status = getCLSStatus(layoutShift);
 
-    let sources = layoutShift.sources.map((source) => {
+    let sources = layoutShift.sources
+    .filter((source) => source.position) // some sources have no nodes and get ignored???
+    .map((source) => {
       return `<span onmouseover="document.querySelectorAll('.layoutshift-position-${layoutShift.position}-${source.position}').forEach((e)=>e.classList.add('layoutshift-visible'))" onmouseout="document.querySelectorAll('.layoutshift-position-${layoutShift.position}-${source.position}').forEach((e)=>e.classList.remove('layoutshift-visible'))">${source.position}</span>`;
     }).join();
 
