@@ -16,12 +16,17 @@
   const webVitals = await import(src);
   let overlayClosedForSession = false;
   let latestCLS = {};
+  let layoutShiftCount = 0;
   let enableLogging = localStorage.getItem('web-vitals-extension-debug')=='TRUE';
 
   // Core Web Vitals thresholds
   const LCP_THRESHOLD = 2500;
   const FID_THRESHOLD = 100;
   const CLS_THRESHOLD = 0.1;
+
+  const LCP_POOR_THRESHOLD = 4000;
+  const FID_POOR_THRESHOLD = 300;
+  const CLS_POOR_THRESHOLD = 0.25;
 
   // CLS update frequency
   const DEBOUNCE_DELAY = 500;
@@ -155,6 +160,103 @@
     return date.toLocaleTimeString('en-US', {hourCycle: 'h23'});
   }
 
+/**
+ * Do on page changes based on a CLS event
+ */
+  function getCLSStatus(layoutShift) {
+    let status = 'pass';
+
+    if(layoutShift.value > CLS_POOR_THRESHOLD) {
+      status = 'fail';
+    }
+    else if (layoutShift.value > CLS_THRESHOLD) {
+      status = 'average';
+    }
+    return status;
+  }
+  function processOnPageCLS(metric) {
+
+    metric.entries.forEach((layoutShift) => {
+      let status = getCLSStatus(layoutShift);
+
+      if(!layoutShift.position){
+        layoutShiftCount++;
+        layoutShift.position = layoutShiftCount;
+        layoutShift.sourceCount=0;
+      }
+
+      layoutShift.sources.forEach((source) => {
+        if(source.node && source.node.classList) {
+
+          if(!source.position){
+            layoutShift.sourceCount++;
+            source.position = layoutShift.sourceCount;
+          }
+
+          if(!source.node.layoutShiftElement) {
+            
+            source.node.layoutShiftElement = document.createElement('div');
+
+            source.node.layoutShiftElement.style.position = "absolute";
+            source.node.layoutShiftElement.style.left = '0px';
+            source.node.layoutShiftElement.style.top = '0px';
+
+   
+            source.node.appendChild(source.node.layoutShiftElement);
+
+            source.node.layoutShiftSources = [];
+          }
+
+          if(!source.node.layoutShiftSources.includes(source)) {
+            source.node.layoutShiftSources.push(source);
+
+            let nodeElement = document.createElement('div');
+
+            nodeElement.classList.add('web-vitals-chrome-extension','lh-vars',`layoutshift-${status}`,'layoutshift-node-div',`layoutshift-position-${layoutShift.position}-${source.position}`,`layoutshift-position-${layoutShift.position}`);
+
+            nodeElement.innerHTML = `${layoutShift.position}.${source.position}`;
+
+            source.node.layoutShiftElement.appendChild(nodeElement);
+          }
+
+          source.node.classList.remove('cls-pass','cls-average','cls-fail');
+          source.node.classList.add('web-vitals-chrome-extension','lh-vars',`layoutshift-${status}`,'layoutshift-node',`layoutshift-position-${layoutShift.position}-${source.position}`,`layoutshift-position-${layoutShift.position}`);
+
+          if(!source.previousElement) {
+
+            if(!source.node.shifts) {
+              source.node.shifts=0;
+            }
+
+            source.node.shifts++;
+          
+            source.previousElement = document.createElement('div');
+
+            let previousRect = source.previousRect;
+
+            source.previousElement.classList.add('web-vitals-chrome-extension','lh-vars','layoutshift-previous',`layoutshift-position-${layoutShift.position}-${source.position}`,`layoutshift-position-${layoutShift.position}`);
+
+            source.previousElement.style.position = "absolute";
+            source.previousElement.style.left = `${previousRect.left + window.scrollX}px`;
+            source.previousElement.style.top = `${previousRect.top + window.scrollY}px`;
+            source.previousElement.style.width = `${previousRect.width}px`;
+            source.previousElement.style.height = `${previousRect.height}px`;
+
+            source.previousElement.innerHTML = `${layoutShift.position}.${source.position}.${source.node.shifts}`;
+
+            document.body.appendChild(source.previousElement);
+          }
+        }
+      });
+    });  
+  }
+
+/**
+ * Do on page changes based on an LCP event
+ */
+  function processOnPageLCP(metric) {
+
+  }
 
   /**
      *
@@ -221,17 +323,46 @@
       // As CLS values can fire frequently in the case
       // of animations or highly-dynamic content, we
       // debounce the broadcast of the metric.
+      processOnPageCLS(metric);
       latestCLS = metric;
       debouncedCLSBroadcast();
     }, true);
     webVitals.getLCP((metric) => {
+      processOnPageLCP(metric);
       broadcastMetricsUpdates('lcp', metric);
     }, true);
     webVitals.getFID((metric) => {
       broadcastMetricsUpdates('fid', metric);
     }, true);
   }
+  function buildLayoutShiftListItem(layoutShift) {
+    let status = getCLSStatus(layoutShift);
 
+    let sources = layoutShift.sources.map((source) => {
+      return `<span onmouseover="document.querySelectorAll('.layoutshift-position-${layoutShift.position}-${source.position}').forEach((e)=>e.classList.add('layoutshift-visible'))" onmouseout="document.querySelectorAll('.layoutshift-position-${layoutShift.position}-${source.position}').forEach((e)=>e.classList.remove('layoutshift-visible'))">${source.position}</span>`;
+    }).join();
+
+    return `
+      <div class="lh-metric lh-metric--${status}">
+        <div class="lh-metric__innerwrap" >
+          <div>
+            <span class="lh-metric__title" onmouseover="document.querySelectorAll('.layoutshift-position-${layoutShift.position}').forEach((e)=>e.classList.add('layoutshift-visible'))" onmouseout="document.querySelectorAll('.layoutshift-position-${layoutShift.position}').forEach((e)=>e.classList.remove('layoutshift-visible'))">
+              Layout Shift${' '}${layoutShift.position}
+                </span> (${sources})
+          </div>
+          <div class="lh-metric__value">${(layoutShift.value).toFixed(3)}&nbsp;</div>
+        </div>
+      </div>
+    `;
+  }
+  function buildLayoutShiftList() {
+    if(!latestCLS) return '';
+    let html = '';
+    latestCLS.entries.forEach((layoutShift) => {
+      html += buildLayoutShiftListItem(layoutShift);
+    }); 
+    return `<div class="lh-layoutshifts">${html}</div>`;
+  }
   /**
  * Build a template of metrics
  * @param {Object} metrics The metrics
@@ -275,6 +406,7 @@
             <div class="lh-metric__value">${metrics.cls.value.toFixed(3)}&nbsp;</div>
           </div>
         </div>
+        ${buildLayoutShiftList()}
       </div>
     </div>
   </div>

@@ -1764,3 +1764,57 @@
   flex: 1;
 }
 
+/** On page visualisation **/
+.web-vitals-chrome-extension.lh-vars {
+  --wv-color: var(--color-pass);
+  --wv-color-secondary: var(--color-pass-secondary);
+}
+.web-vitals-chrome-extension.lh-vars.layoutshift-pass {
+  --wv-color: var(--color-pass);
+  --wv-color-secondary: var(--color-pass-secondary);
+}
+.web-vitals-chrome-extension.lh-vars.layoutshift-average {
+  --wv-color: var(--color-average);
+  --wv-color-secondary: var(--color-average-secondary);
+}
+.web-vitals-chrome-extension.lh-vars.layoutshift-fail {
+  --wv-color: var(--color-fail);
+  --wv-color-secondary: var(--color-fail-secondary);
+}
+.web-vitals-chrome-extension.lh-vars.layoutshift-node.layoutshift-visible, 
+.web-vitals-chrome-extension.lh-vars.layoutshift-node.layoutshift-visible *,
+.web-vitals-chrome-extension.lh-vars.layoutshift-node-div.layoutshift-visible {
+  background:
+    linear-gradient(63deg, var(--wv-color-secondary) 23%, transparent 23%) 7px 0,
+    linear-gradient(63deg, transparent 74%, var(--wv-color-secondary) 78%),
+    linear-gradient(63deg, transparent 34%, var(--wv-color-secondary) 38%, var(--wv-color-secondary) 58%, transparent 62%),
+    var(--wv-color);
+  background-size: 8px 24px;
+}
+.web-vitals-chrome-extension.lh-vars.layoutshift-node.layoutshift-visible img {
+  opacity: 0.5;
+}
+.web-vitals-chrome-extension.lh-vars.layoutshift-node.layoutshift-visible * {
+  background-color:rgb(128, 128, 128,0.5);
+}
+
+.web-vitals-chrome-extension.lh-vars.layoutshift-node-div {
+  display: none;
+}
+.web-vitals-chrome-extension.lh-vars.layoutshift-node-div.layoutshift-visible {
+  display: block;
+  text-shadow: -1px 0 white, 0 1px white, 1px 0 white, 0 -1px white;
+  padding: 0px 4px;
+}
+.web-vitals-chrome-extension.lh-vars.layoutshift-previous {
+  display: none;
+}
+.web-vitals-chrome-extension.lh-vars.layoutshift-previous.layoutshift-visible {
+  display: block;
+  padding: 0px 4px;
+  text-shadow: -1px 0 white, 0 1px white, 1px 0 white, 0 -1px white;
+  z-index: 10000000;
+  border:2px dashed black;
+  background-color:rgb(128, 128, 128,0.5);
+}
+
